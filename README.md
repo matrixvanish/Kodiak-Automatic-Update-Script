@@ -42,5 +42,5 @@ The following variables can be adjusted within the script for different environm
 
 ## Technical Details
 
-- **Temporary Files**: Updates are downloaded to `%TEMP%\kodiak_update`.
-- **System Path**: Checks `C:\Windows\Branding\Basebrd\verinfo.ini` for enterprise-level version tracking.
+- **Temporary Files**: Updates are downloaded to `%TEMP%\kodiak_update` after installation is finished teh script automatically deletes the files.
+- **System Path**: Checks `C:\Windows\Branding\Basebrd\verinfo.ini` for version tracking.
