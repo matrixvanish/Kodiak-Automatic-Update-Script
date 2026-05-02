@@ -12,14 +12,12 @@ The **Kodiak Automatic Updater** is a batch script designed to streamline the pr
 
 ## Prerequisites
 
-1. **PowerShell**: Required for fetching metadata and handling zip archives.
-2. **fetch.ps1**: A helper PowerShell script must be located in the same directory as `Update.cmd` to handle GitHub API communication.
-3. **Internet Access**: Required to connect to the `missiletechradar/kdupdates` repository.
+1. **Internet Access**: Required to download releases for Kodaik10 from the `missiletechradar/kdupdates` repository.
 
 ## Installation & Usage
 
 1. Place `Update.cmd` and `fetch.ps1` in your desired application folder.
-2. Ensure you have a `verinfo.txt` file in the local folder (or `verinfo.ini` at `C:\Windows\Branding\Basebrd\`) containing a `build=XXXX` entry.
+2. Ensure you have the `verinfo.ini` at `C:\Windows\Branding\Basebrd\`) containing a `build=XXXX` entry. Only in Kodiak10.
 3. Run `Update.cmd` as an Administrator to ensure it has the necessary permissions to read system files and create temporary directories.
 
 ## Configuration
