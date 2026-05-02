@@ -1,11 +1,6 @@
 @echo off
 setlocal enabledelayedexpansion
 
-:: ============================================================
-:: Kodiak Automatic Update Script
-:: Consolidated Version: fetch.ps1 logic included inline
-:: ============================================================
-
 set "REPO_OWNER=missiletechradar"
 set "REPO_NAME=kdupdates"
 set "VERINFO_LOCAL=verinfo.txt"
@@ -19,7 +14,6 @@ echo  Kodiak Automatic Updater
 echo ========================================
 echo/
 
-:: --- Version Detection ---
 set "VERINFO_SOURCE="
 set "CURRENT_BUILD="
 
@@ -55,7 +49,6 @@ if not defined CURRENT_BUILD (
 echo Current Build: %CURRENT_BUILD%
 echo/
 
-:: --- Compatibility Check ---
 set /a BUILD_NUM=%CURRENT_BUILD%
 
 if %BUILD_NUM% LSS %MIN_SUPPORTED_BUILD% (
@@ -73,30 +66,15 @@ if %BUILD_NUM% LSS %MIN_SUPPORTED_BUILD% (
     echo/
 )
 
-:: --- Integrated Fetch Logic ---
 echo Fetching update info from GitHub...
 echo/
 
 if exist "%TEMP_DIR%" rmdir /s /q "%TEMP_DIR%"
 mkdir "%TEMP_DIR%"
 
-:: Create an inline PowerShell script to replace fetch.ps1
-(
-echo $repoOwner = "%REPO_OWNER%"
-echo $repoName = "%REPO_NAME%"
-echo try {
-echo     $url = "https://api.github.com/repos/$repoOwner/$repoName/releases/latest"
-echo     $response = Invoke-RestMethod -Uri $url -Method Get -ErrorAction Stop
-echo     $version = $response.tag_name
-echo     $build = ($response.body -split '`' ^| Select-String "Build:").ToString().Split(':')[-1].Trim()
-echo     $asset = $response.assets ^| Where-Object { $_.name -like "*.zip" } ^| Select-Object -First 1
-echo     Write-Output "LATEST_VERSION=$version"
-echo     Write-Output "LATEST_BUILD=$build"
-echo     Write-Output "DOWNLOAD_URL=$($asset.browser_download_url)"
-echo } catch { exit 1 }
-) > "%TEMP_DIR%\fetch_logic.ps1"
+set "PS_CMD=$r=Invoke-RestMethod 'https://api.github.com/repos/%REPO_OWNER%/%REPO_NAME%/releases/latest'; $b=($r.body -split '`' | Select-String 'Build:').ToString().Split(':')[-1].Trim(); $a=($r.assets | Where-Object {$_.name -like '*.zip'} | Select-Object -First 1).browser_download_url; Write-Output \"LATEST_VERSION=$($r.tag_name)\"; Write-Output \"LATEST_BUILD=$b\"; Write-Output \"DOWNLOAD_URL=$a\""
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP_DIR%\fetch_logic.ps1" > "%TEMP_DIR%\update_info.txt" 2>&1
+powershell -NoProfile -ExecutionPolicy Bypass -Command "%PS_CMD%" > "%TEMP_DIR%\update_info.txt" 2>&1
 
 :: Parse metadata
 set "LATEST_VERSION="
@@ -115,7 +93,6 @@ if not defined LATEST_VERSION (
 echo Latest Version: %LATEST_VERSION% (Build: %LATEST_BUILD%^)
 echo/
 
-:: --- Update Logic ---
 if defined SKIP_UPDATE (
     echo [INFO] Skipping update - you appear to be on a newer version.
     goto :cleanup
@@ -144,40 +121,39 @@ if not defined DOWNLOAD_URL (
     goto :cleanup
 )
 
-echo Downloading update from GitHub...
+echo Downloading update...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -Uri '%DOWNLOAD_URL%' -OutFile '%TEMP_DIR%\update.zip' -TimeoutSec 60"
 
-if errorlevel 1 (
-    echo [ERROR] Download failed!
-    goto :cleanup
-)
-
-echo Extracting update package...
+echo Extracting update...
 powershell -NoProfile -ExecutionPolicy Bypass -Command "Expand-Archive -Path '%TEMP_DIR%\update.zip' -DestinationPath '%TEMP_DIR%\extracted' -Force"
 
-:: Find and run setup.exe
 set "SETUP_EXE="
 for /r "%TEMP_DIR%\extracted" %%f in (setup.exe) do (
     if exist "%%f" (
         set "SETUP_EXE=%%f"
-        goto :found_setup
+        goto :launch
     )
 )
 
-:found_setup
-if not defined SETUP_EXE (
+:launch
+if defined SETUP_EXE (
+    echo Starting installer...
+    echo PLEASE WAIT: Script will resume once installer is closed.
+    echo/
+    :: Wait for the process to finish
+    start /wait "" "%SETUP_EXE%"
+    echo/
+    echo Installer closed.
+) else (
     echo [ERROR] setup.exe not found in update package!
-    goto :cleanup
 )
 
-echo Starting setup.exe...
-start "" "%SETUP_EXE%"
-
 :cleanup
-if exist "%TEMP_DIR%\fetch_logic.ps1" del "%TEMP_DIR%\fetch_logic.ps1"
+echo Cleaning up temporary files...
+if exist "%TEMP_DIR%" rmdir /s /q "%TEMP_DIR%"
 echo/
 echo ========================================
-echo  Update Check Complete
+echo  Update Process Finished
 echo ========================================
 pause
 exit /b 0
